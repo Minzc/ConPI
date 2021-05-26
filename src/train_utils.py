@@ -4,13 +4,14 @@ import random
 import numpy as np
 import sklearn.metrics as metrics
 from sklearn.linear_model import LogisticRegression
-
+import torch.nn as nn
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
-
+from scipy.special import softmax
 import utils
 import loader
+
 
 
 def eval_link_context(dataset, model, criterion, args):
@@ -19,7 +20,7 @@ def eval_link_context(dataset, model, criterion, args):
 
         test_logits = []
         test_labels = []
-        num_batches = len(dataset) // args.batch_size
+        num_batches = int(np.ceil(len(dataset) / args.batch_size))
         np.random.shuffle(dataset)
         for i in range(num_batches):
             train_batch = dataset[i * args.batch_size: (i + 1) * args.batch_size]
@@ -40,12 +41,8 @@ def eval_link_context(dataset, model, criterion, args):
             labels = torch.tensor(labels).type(torch.FloatTensor).to(args.device)
             logits, _ = model(t1_batch, t2_batch, t1_ctx_batch, t2_ctx_batch, masks=masks)
 
-            if args.cuda:
-                logits = logits.to('cpu').detach().data.numpy()
-                labels = labels.to('cpu').detach().data.numpy()
-            else:
-                logits = logits.detach().data.numpy()
-                labels = labels.detach().data.numpy()
+            logits = logits.to('cpu').detach().data.numpy()
+            labels = labels.to('cpu').detach().data.numpy()
 
             # print(logits.shape)
             test_logits.append(logits)
@@ -53,17 +50,20 @@ def eval_link_context(dataset, model, criterion, args):
 
         test_golds = np.concatenate(test_labels)
         test_logits = np.concatenate(test_logits)
-        test_probs = utils.sigmoid(test_logits)
-        test_preds = np.where(utils.sigmoid(test_logits) >= 0.5, 1, 0)
+        # test_probs = utils.sigmoid(test_logits)
+        # test_preds = np.where(utils.sigmoid(test_logits) >= 0.5, 1, 0)
+        test_preds = np.argmax(test_logits, axis=1)
+        test_probs = softmax(test_logits, axis=1)
 
-        test_roc_auc = metrics.roc_auc_score(test_golds, test_probs)
-        test_ap = metrics.average_precision_score(test_golds, test_probs)
+        # test_roc_auc = metrics.roc_auc_score(test_golds, test_probs)
+        # test_ap = metrics.average_precision_score(test_golds, test_probs)
         test_acc = metrics.accuracy_score(test_golds, test_preds)
-        test_f1 = metrics.f1_score(test_golds, test_preds)
+        test_micro_f1 = metrics.f1_score(test_golds, test_preds, average="micro")
+        test_macro_f1 = metrics.f1_score(test_golds, test_preds, average="macro")
         # test_prec = metrics.precision_score(test_golds, test_preds)
         # test_reca = metrics.recall_score(test_golds, test_preds)
 
-    return {'roc': test_roc_auc, 'ap': test_ap, 'acc': test_acc, 'f1': test_f1}
+    return {'roc': None, 'ap': None, 'acc': test_acc, 'micro-f1': test_micro_f1, "macro-f1": test_macro_f1}
 
 
 def logistis_regression(train, dev, test, embed_file, seed, link_feature='hadamard'):
