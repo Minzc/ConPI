@@ -74,7 +74,33 @@ def make_idx_ctx_pair_batch(dataset, neighbor_func, node_to_id, max_num_ctx=100)
     return data, list_data
 
 
+
+def make_idx_ctx_data_zc(dataset, neighbor_func, max_num_ctx=100):
+    # dataset: train_data
+    data = []
+    for sample in dataset:
+        cur_dict = {}
+        t1 = sample[0]
+        t2 = sample[1]
+        label = sample[-1]
+        t1_ctx = neighbor_func(t1)
+        t2_ctx = neighbor_func(t2)
+
+        cur_dict['t1'] = int(t1)
+        cur_dict['t2'] = int(t2)
+
+        cur_dict['t1_ctx'] = [int(x) for x in t1_ctx][:max_num_ctx]
+        cur_dict['t2_ctx'] = [int(x) for x in t2_ctx][:max_num_ctx]
+
+        cur_dict['y'] = label
+        data.append(cur_dict)
+
+    return data
+
+
+
 def make_idx_ctx_data(dataset, neighbor_func, node_to_id, max_num_ctx=100):
+    # dataset: train_data
     data = []
     list_data = []
     for sample in dataset:
