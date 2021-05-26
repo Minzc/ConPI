@@ -157,20 +157,23 @@ def load_graph(if_down_sample):
                 (int(obj["u_id"]), item_remap[i_id])
             )
             max_iid = max(item_remap[i_id], max_iid)
+
+    X_0 = []
+    X_1 = []
+    X_2 = []
+    for i, j, y in data:
+        if y == 1:
+            X_1.append((i, j, y))
+        elif y == 0:
+            X_0.append((i, j, y))
+        else:
+            X_2.append((i, j, y))
     if if_down_sample == True:
-        X_0 = []
-        X_1 = []
-        X_2 = []
-        for i, j, y in data:
-            if y == 1:
-                X_1.append((i, j, y))
-            elif y == 0:
-                X_0.append((i, j, y))
-            else:
-                X_2.append((i, j, y))
         data = X_0 + X_1 + random.choices(X_2, k=len(X_0))
-        total = len(data)
-        print(len(X_0) / total, len(X_1) / total, len(X_0) / total)
+    else:
+        data = X_0 + X_1 + X_2
+    total = len(data)
+    print(len(X_0) / total, len(X_1) / total, len(X_0) / total)
     # ========================
     # Load Knowledge graph
     # =======================
@@ -284,32 +287,16 @@ def train(model, train_data, test_data):
             # =============
             # Train F1
             # =============
-            best_train_macro_f1 = train_micro_f1
-            best_train_micro_f1 = train_macro_f1
+            best_train_macro_f1 = train_macro_f1
+            best_train_micro_f1 = train_micro_f1
 
             print("\t-- Testing: Test Acc {0:.4} Micro-F1 {1:.4} Macro-F1 {2:.4}".
                   format(dev_results['acc'] * 100, dev_results['micro-f1'] * 100,
                          dev_results['macro-f1'] * 100))
-            best_res_test = dev_results
 
             if args.save_best:
                 utils.save(model, args.save_dir, 'best', epoch)
-            # print('\n')
-        # else:
-        #     print('\r')
-        #     if epoch - last_epoch > args.early_stop_epochs and epoch > args.min_epochs:
-        #         print('Best Performance at epoch: {0}'.format(last_epoch))
-        #         print('Best Dev: Acc {0:.4}\tMicro-F1 {1:.4}\tMacro-F1 {2:.4}'.format(best_res_dev['acc'] * 100,
-        #                                                                               best_res_dev['micro-f1'] * 100,
-        #                                                                               best_res_dev['macro-f1'] * 100))
-        #         print('Best Dev: Acc {0:.4}\tMicro-F1 {1:.4}\tMacro-F1 {2:.4}'.format(best_res_test['acc'] * 100,
-        #                                                                               best_res_test[
-        #                                                                                   'micro-f1'] * 100,
-        #                                                                               best_res_test[
-        #                                                                                   'macro-f1'] * 100))
-        #
-        #         print('Early stop at {0} epoch.'.format(epoch))
-        #         break
+
         print("Average train loss", np.mean(train_loss), np.std(train_loss))
     return {
         "best_test_macro_f1": best_test_macro_f1,
